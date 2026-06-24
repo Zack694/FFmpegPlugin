@@ -63,8 +63,8 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Upload FFmpeg build log on failure
-        if: failure()
+      - name: Upload FFmpeg build log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-build-log
