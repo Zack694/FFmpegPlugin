@@ -2,44 +2,71 @@ name: Android CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "feat/hevc-mediacodec" ]
   pull_request:
-    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    env:
-      FFMPEG_PLUGIN_KEYSTORE_PASSWORD: ${{ secrets.FFMPEG_PLUGIN_KEYSTORE_PASSWORD }}
+    timeout-minutes: 180
     steps:
-    - uses: actions/checkout@v3
-    - name: set up JDK 11
-      uses: actions/setup-java@v3
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: gradle
+      - uses: actions/checkout@v4
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: |
-        sudo apt install nasm autogen
-        ./scripts/setup_environ.sh
-        ./scripts/build_libs.sh
-        ./gradlew assembleRelease
-        ./gradlew bundleRelease
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: app/build/outputs/apk/release/app-release.apk
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf automake libtool pkg-config \
+            nasm yasm cmake ninja-build build-essential \
+            autogen autopoint gettext curl git
 
-    - name: Upload AAB
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release-aab
-        path: app/build/outputs/bundle/release/app-release.aab
+      - name: Set up Android NDK r25c
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
+
+      - name: Export Android paths
+        run: |
+          echo "ANDROID_NDK_ROOT=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build FFmpeg (arm64-v8a, with MediaCodec encoder)
+        run: |
+          ./scripts/setup_environ.sh
+          ./scripts/build_libs.sh
+
+      - name: Show built FFmpeg encoders (sanity check)
+        run: |
+          echo "=== libraries.jar contents ==="
+          unzip -l app/libs/libraries.jar || true
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FFmpegPlugin-mediacodec-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload FFmpeg build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-build-log
+          path: ffmpeg-kit/build.log
+          if-no-files-found: ignore

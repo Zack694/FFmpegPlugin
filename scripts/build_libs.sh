@@ -15,7 +15,7 @@ if [ ! -e ./ffmpeg-kit ]; then
   exit 1
 fi
 cd ffmpeg-kit
-./android.sh --api-level=24 --enable-gpl --enable-shine --enable-x264 --enable-x265 --enable-libtheora --enable-opus --enable-libvorbis --enable-twolame
+./android.sh --api-level=24 --disable-arm-v7a --disable-arm-v7a-neon --disable-x86 --disable-x86-64 --enable-android-media-codec --enable-gpl --enable-shine --enable-x264 --enable-x265 --enable-libtheora --enable-opus --enable-libvorbis --enable-twolame
 function copy_libs {
    if [ -e ../app/libs/lib/$1/ ]; then
       rm -r ../app/libs/lib/$1/*
@@ -36,10 +36,7 @@ if [ ! -e ../app/libs/lib ]; then
       mkdir ../app/libs/lib
 fi
 
-copy_libs armeabi-v7a android-arm-neon
 copy_libs arm64-v8a android-arm64
-copy_libs x86 android-x86
-copy_libs x86_64 android-x86_64
 cd ../app/libs/
 rm libraries.jar
 zip -r ./libraries.jar lib/
