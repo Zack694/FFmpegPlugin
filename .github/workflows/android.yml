@@ -10,6 +10,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    env:
+      # cpu_features (and some other deps) declare cmake_minimum_required < 3.5,
+      # which the runner's CMake (>=3.31/4.x) rejects. CMake reads this from the
+      # environment, so it fixes ffmpeg-kit's internal cmake calls too.
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
     steps:
       - uses: actions/checkout@v4
 
